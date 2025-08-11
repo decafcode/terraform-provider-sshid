@@ -57,7 +57,9 @@ func (p *sshidProvider) DataSources(ctx context.Context) []func() datasource.Dat
 }
 
 func (p *sshidProvider) Functions(ctx context.Context) []func() function.Function {
-	return nil
+	return []func() function.Function{
+		newFromspkiFunction,
+	}
 }
 
 func (p *sshidProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
