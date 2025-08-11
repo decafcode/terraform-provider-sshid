@@ -66,7 +66,9 @@ func (p *sshidProvider) Metadata(ctx context.Context, req provider.MetadataReque
 }
 
 func (p *sshidProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		newHostResource,
+	}
 }
 
 func (p *sshidProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
