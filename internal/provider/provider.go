@@ -1,14 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -16,86 +11,74 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
-var _ provider.ProviderWithEphemeralResources = &ScaffoldingProvider{}
-
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
-	// version is set to the provider version on release, "dev" when the
-	// provider is built and ran locally, and "test" when running acceptance
-	// testing.
+type sshidProvider struct {
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+type sshidProviderModel struct {
+	HostKeyAlgorithms types.List `tfsdk:"host_key_algorithms"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
-	resp.Version = p.version
+type sshidProviderState struct {
+	HostKeyAlgorithms []string
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
-			},
-		},
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &sshidProvider{
+			version: version,
+		}
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *sshidProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	state := &sshidProviderState{}
 
+	var data sshidProviderModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	resp.Diagnostics.Append(
+		data.HostKeyAlgorithms.ElementsAs(ctx, &state.HostKeyAlgorithms, false)...,
+	)
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
-}
-
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewExampleResource,
+	if resp.Diagnostics.HasError() {
+		return
 	}
+
+	resp.ResourceData = state
 }
 
-func (p *ScaffoldingProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return []func() ephemeral.EphemeralResource{
-		NewExampleEphemeralResource,
-	}
+func (p *sshidProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return nil
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
+func (p *sshidProvider) Functions(ctx context.Context) []func() function.Function {
+	return nil
 }
 
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
+func (p *sshidProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "sshid"
+	resp.Version = p.version
 }
 
-func New(version string) func() provider.Provider {
-	return func() provider.Provider {
-		return &ScaffoldingProvider{
-			version: version,
-		}
+func (p *sshidProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return nil
+}
+
+func (p *sshidProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"host_key_algorithms": schema.ListAttribute{
+				ElementType: types.StringType,
+				MarkdownDescription: "An ordered list of public key type names (of the kind found in the second field of an entry in your `~/.ssh/authorized_keys` file) to request from remote SSH servers. If this is not specified then the default sequence of algorithms built in to the Go `crypto/ssh` library will be used.\n\n" +
+					"  The first key type that the server supports will be used for SSH host key checks and any other host key types will be ignored. This is less secure than OpenSSH, which checks all of a remote host's known keys, but this deficiency is due to what appears to be a limitation in the API of Go's `crypto/ssh` module.\n\n" +
+					"  The `crypto/ssh` module seems to start negotiations by requesting host keys based on NIST elliptic curves by default, so you might want to specify `[\"ssh-ed25519\"]` here to force the use of the less-dubious Ed25519 algorithm instead.",
+				Optional: true,
+			},
+		},
 	}
 }
