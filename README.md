@@ -1,4 +1,4 @@
-# Terraform Provider Scaffolding (Terraform Plugin Framework)
+# SSH ID Provider
 
 Please consult the documentation output in the `docs/` subdirectory of this repository for usage information.
 
